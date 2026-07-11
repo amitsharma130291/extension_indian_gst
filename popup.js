@@ -1,252 +1,223 @@
-/**
- * Indian Freelancer Tax Dashboard — Popup Script
- * Reads chrome.storage.local directly. No service worker dependency.
- */
-
 'use strict';
 
-// ─── State ────────────────────────────────────────────────────────────────────
-let currentSettings = {};
-let currentTaxResult = null;
-
-// ─── Storage ──────────────────────────────────────────────────────────────────
-async function loadAll() {
-  const data = await chrome.storage.local.get(['earnings', 'settings', 'checklist', 'dismissedAlarms']);
-  return {
-    earnings: data.earnings || [],
-    settings: data.settings || { state: 'Maharashtra', regime: 'new', expenses: 0, usdRate: 85 },
-    checklist: data.checklist || {},
-    dismissedAlarms: data.dismissedAlarms || []
-  };
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function el(id) { return document.getElementById(id); }
+function fmtINR(n) {
+  if (n === null || n === undefined || isNaN(n)) return '₹—';
+  return '₹' + Math.round(n).toLocaleString('en-IN');
 }
 
-async function saveSettings(settings) {
-  await chrome.storage.local.set({ settings });
+// ─── Storage ─────────────────────────────────────────────────────────────────
+async function loadSaved() {
+  const d = await chrome.storage.local.get(['lastInput', 'checklist']);
+  return { lastInput: d.lastInput || {}, checklist: d.checklist || {} };
+}
+
+async function saveInput(inp) {
+  await chrome.storage.local.set({ lastInput: inp });
 }
 
 async function saveChecklist(checklist) {
   await chrome.storage.local.set({ checklist });
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function fmtINR(n) {
-  if (n === null || n === undefined || isNaN(n)) return '₹—';
-  return '₹' + Math.round(n).toLocaleString('en-IN');
-}
+// ─── FY Label ────────────────────────────────────────────────────────────────
+const fyYear = TaxEngine.currentFYStartYear();
+el('fy-label').textContent = `FY ${fyYear}–${String(fyYear + 1).slice(2)}`;
 
-function el(id) { return document.getElementById(id); }
+// ─── Show/hide expenses field for old regime ─────────────────────────────────
+el('inp-regime').addEventListener('change', () => {
+  el('row-expenses').style.display = el('inp-regime').value === 'old' ? 'flex' : 'none';
+});
 
-// ─── Render Dashboard ─────────────────────────────────────────────────────────
-function renderDashboard(data) {
-  const { earnings, settings, checklist } = data;
-  currentSettings = settings;
+// ─── Main Calculate ───────────────────────────────────────────────────────────
+el('btn-calc').addEventListener('click', calculate);
 
-  const fyYear = TaxEngine.currentFYStartYear();
-  const fyLabel = `FY ${fyYear}-${String(fyYear + 1).slice(2)}`;
-  el('fy-label').textContent = fyLabel;
+function calculate() {
+  const earnings  = parseFloat(el('inp-earnings').value) || 0;
+  const regime    = el('inp-regime').value;
+  const state     = el('inp-state').value;
+  const expenses  = parseFloat(el('inp-expenses').value) || 0;
+  const tdsInput  = el('inp-tds').value;
+  const tdsDeducted = tdsInput !== '' ? parseFloat(tdsInput) : Math.round(earnings * 0.01);
 
-  // Find this FY's earnings
-  let fyEarnings = earnings.find(e => e.fyYear === fyYear);
-
-  // If manual override set in settings, use that
-  if (settings.manualEarnings && settings.manualEarnings > 0) {
-    fyEarnings = fyEarnings
-      ? { ...fyEarnings, totalINR: settings.manualEarnings }
-      : { totalINR: settings.manualEarnings, tdsDeducted: Math.round(settings.manualEarnings * 0.01), fyYear };
-  }
-
-  if (!fyEarnings || !fyEarnings.totalINR) {
-    // No data yet — show helpful empty state
-    el('gross-earnings').textContent = '₹0';
-    el('tds-deducted').textContent = '₹0';
-    el('total-tax').textContent = '₹—';
-    el('net-payable').textContent = '₹—';
-    el('deadlines-list').innerHTML = `
-      <div class="no-data">
-        <strong>No earnings data yet</strong>
-        Visit your <a href="https://www.upwork.com/nx/payments/" target="_blank" style="color:#14c98f">Upwork payments page</a>
-        or <a href="https://www.fiverr.com" target="_blank" style="color:#14c98f">Fiverr orders page</a>
-        while the extension is active — your earnings will appear here automatically.<br><br>
-        Or enter your earnings manually in <strong>Settings → Manual Earnings</strong>.
-      </div>`;
-    renderGST(0, settings);
-    renderChecklist(checklist);
+  if (!earnings || earnings <= 0) {
+    el('inp-earnings').focus();
+    el('inp-earnings').style.borderColor = '#f85149';
+    setTimeout(() => el('inp-earnings').style.borderColor = '', 1500);
     return;
   }
 
-  // Calculate tax
-  const taxResult = TaxEngine.calculateTax({
-    grossEarnings: fyEarnings.totalINR,
-    expenses: settings.expenses || 0,
-    tdsDeducted: fyEarnings.tdsDeducted || 0,
-    regime: settings.regime || 'new',
-    state: settings.state || 'Maharashtra'
-  });
-  currentTaxResult = taxResult;
+  // Save last input
+  saveInput({ earnings, regime, state, expenses, tdsDeducted });
 
-  // Earnings cards
-  el('gross-earnings').textContent = fmtINR(fyEarnings.totalINR);
-  el('tds-deducted').textContent = fmtINR(fyEarnings.tdsDeducted || 0);
-  el('total-tax').textContent = fmtINR(taxResult.totalTax);
-  el('net-payable').textContent = fmtINR(taxResult.netPayable);
+  // Calculate
+  const result = TaxEngine.calculateTax({ grossEarnings: earnings, expenses, tdsDeducted, regime, state });
+
+  // Show results
+  el('results').classList.remove('hidden');
+
+  // Summary cards
+  el('r-gross').textContent     = fmtINR(earnings);
+  el('r-tds').textContent       = fmtINR(tdsDeducted);
+  el('r-liability').textContent = fmtINR(result.totalTax);
+  el('r-payable').textContent   = fmtINR(result.netPayable);
 
   // Colour net payable
-  const netEl = el('net-payable');
-  if (taxResult.netPayable > 50000) netEl.className = 'earn-value red';
-  else if (taxResult.netPayable > 10000) netEl.className = 'earn-value amber';
-  else netEl.className = 'earn-value green';
+  const rpEl = el('r-payable');
+  rpEl.className = result.netPayable > 50000 ? 'sum-value red'
+                 : result.netPayable > 10000 ? 'sum-value amber'
+                 : 'sum-value green';
 
-  // Advance tax deadlines
-  renderDeadlines(taxResult.installments);
+  // Breakdown
+  el('bk-taxable').textContent    = fmtINR(result.taxableIncome);
+  el('bk-base').textContent       = fmtINR(result.baseTax);
+  el('bk-cess').textContent       = fmtINR(result.cess);
+  el('bk-total').textContent      = fmtINR(result.totalTax);
+  el('bk-tds-credit').textContent = `− ${fmtINR(tdsDeducted)}`;
+
+  if (result.rebate > 0) {
+    el('bk-rebate-row').classList.remove('hidden');
+    el('bk-rebate').textContent = `− ${fmtINR(result.rebate)}`;
+  } else {
+    el('bk-rebate-row').classList.add('hidden');
+  }
+
+  // Advance tax
+  renderAdvanceTax(result);
 
   // GST
-  renderGST(fyEarnings.totalINR, settings);
+  renderGST(earnings, result, state);
 
-  // Checklist
-  renderChecklist(checklist);
+  // Update set-aside placeholder
+  el('sa-payment').placeholder = `Amount (set aside ~${result.setAsideRate}%)`;
 
-  // Set aside rate for calculator
-  el('payment-input').placeholder = `Enter payment (set aside ~${taxResult.setAsideRate}%)`;
+  // Scroll results into view
+  el('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function renderDeadlines(installments) {
-  const list = el('deadlines-list');
-  list.innerHTML = installments.map(inst => {
-    let cls = '';
-    let badge = '';
-    if (inst.isPast) { cls = 'overdue'; badge = '<span class="deadline-badge overdue">Check paid</span>'; }
-    else if (inst.isUrgent) { cls = 'urgent'; badge = `<span class="deadline-badge urgent">⚠ ${inst.daysLeft}d left</span>`; }
-    else { badge = `<span class="deadline-badge">${inst.daysLeft}d</span>`; }
+// ─── Advance Tax ─────────────────────────────────────────────────────────────
+function renderAdvanceTax(result) {
+  const list = el('advance-list');
+  const noteEl = el('advance-note');
 
-    return `
-      <div class="deadline-row ${cls}">
-        <div class="deadline-left">
-          <span class="deadline-quarter">${inst.quarter}</span>
-          <span class="deadline-date">${inst.deadline}</span>
-        </div>
-        <div class="deadline-right">
-          <span class="deadline-amount">${fmtINR(inst.installment)}</span>
-          ${badge}
-        </div>
-      </div>`;
+  if (!result.advanceTaxRequired) {
+    list.innerHTML = `<div style="font-size:12px;color:#3fb950;padding:4px 0">
+      ✅ No advance tax needed — net payable is below ₹10,000</div>`;
+    noteEl.textContent = '';
+    return;
+  }
+
+  list.innerHTML = result.installments.map(inst => {
+    let cls = inst.isPast ? 'past' : inst.isUrgent ? 'urgent' : '';
+    let badge = inst.isPast
+      ? '<span class="adv-badge past">Verify paid</span>'
+      : inst.isUrgent
+        ? `<span class="adv-badge urgent">⚠ ${inst.daysLeft}d left</span>`
+        : `<span class="adv-badge">${inst.daysLeft}d away</span>`;
+
+    return `<div class="advance-row ${cls}">
+      <div class="adv-left">
+        <span class="adv-q">${inst.quarter}</span>
+        <span class="adv-date">${inst.deadline}</span>
+      </div>
+      <div class="adv-right">
+        <span class="adv-amt">${fmtINR(inst.installment)}</span>
+        ${badge}
+      </div>
+    </div>`;
   }).join('');
+
+  const urgent = result.installments.find(i => i.isUrgent);
+  noteEl.textContent = urgent
+    ? `⚠ Pay ${fmtINR(urgent.installment)} via Challan 280 on the IT portal before ${urgent.deadline}. Late payment attracts 1% interest/month.`
+    : 'Pay via Challan 280 on the Income Tax portal. Late payment attracts 1% interest per month under Section 234B/234C.';
 }
 
-function renderGST(turnover, settings) {
-  const isSpecial = TaxEngine.SPECIAL_CATEGORY_STATES.includes(settings.state || 'Maharashtra');
-  const threshold = isSpecial ? TaxEngine.GST_THRESHOLD_SPECIAL : TaxEngine.GST_THRESHOLD_GENERAL;
-  const pct = Math.min((turnover / threshold) * 100, 100);
+// ─── GST ─────────────────────────────────────────────────────────────────────
+function renderGST(earnings, result, state) {
+  const pct = Math.min(result.gstPct, 100);
 
-  el('gst-turnover').textContent = fmtINR(turnover);
-  el('gst-threshold').textContent = fmtINR(threshold);
-  el('gst-bar-fill').style.width = `${pct}%`;
-  el('gst-pct').textContent = `${Math.round(pct)}%`;
+  el('gst-earnings').textContent     = fmtINR(earnings);
+  el('gst-thresh').textContent       = fmtINR(result.gstThreshold);
+  el('gst-pct-badge').textContent    = `${result.gstPct}%`;
+  el('gst-fill').style.width         = `${pct}%`;
+  el('gst-fill').style.background    = pct >= 100 ? '#f85149' : pct >= 75 ? '#e3b341' : '#14c98f';
 
-  // Colour the bar
-  const fill = el('gst-bar-fill');
-  if (pct >= 100) fill.style.background = '#f85149';
-  else if (pct >= 75) fill.style.background = '#e3b341';
-  else fill.style.background = '#14c98f';
-
-  // Status message
   const statusEl = el('gst-status');
-  if (turnover >= threshold) {
-    statusEl.textContent = '🔴 GST registration required — consult a CA';
-    statusEl.className = 'gst-status danger';
+  if (result.gstRequired) {
+    statusEl.textContent  = '🔴 You have crossed the threshold — GST registration required. Consult a CA.';
+    statusEl.className    = 'gst-status danger';
   } else if (pct >= 75) {
-    const remaining = fmtINR(threshold - turnover);
-    statusEl.textContent = `⚠ ${remaining} until threshold — plan ahead`;
-    statusEl.className = 'gst-status warning';
+    statusEl.textContent  = `⚠ ${fmtINR(result.gstThreshold - earnings)} remaining before threshold. Plan ahead.`;
+    statusEl.className    = 'gst-status warning';
   } else {
-    statusEl.textContent = `✅ No GST registration needed yet`;
-    statusEl.className = 'gst-status safe';
+    statusEl.textContent  = `✅ No GST registration needed — you are ${result.gstPct}% of the ${TaxEngine.SPECIAL_CATEGORY_STATES.includes(state) ? '₹10L' : '₹20L'} threshold.`;
+    statusEl.className    = 'gst-status safe';
   }
 }
 
-function renderChecklist(checklist) {
-  ['26as', 'advance', 'books', 'itr'].forEach(key => {
+// ─── Breakdown Toggle ─────────────────────────────────────────────────────────
+let breakdownOpen = false;
+el('toggle-breakdown').addEventListener('click', () => {
+  breakdownOpen = !breakdownOpen;
+  el('breakdown').classList.toggle('hidden', !breakdownOpen);
+  el('toggle-breakdown').textContent = breakdownOpen ? '▾ Hide breakdown' : '▸ Show breakdown';
+});
+
+// ─── Set-Aside Calculator ─────────────────────────────────────────────────────
+el('sa-calc').addEventListener('click', () => {
+  const payment = parseFloat(el('sa-payment').value);
+  if (!payment || payment <= 0) return;
+
+  const earnings = parseFloat(el('inp-earnings').value) || 0;
+  const regime   = el('inp-regime').value;
+  const state    = el('inp-state').value;
+  const result   = earnings > 0
+    ? TaxEngine.calculateTax({ grossEarnings: earnings, regime, state })
+    : { setAsideRate: 30 };
+
+  const sa = TaxEngine.calcPaymentSetAside(payment, result.setAsideRate);
+  const res = el('sa-result');
+  res.classList.remove('hidden');
+  res.innerHTML = `
+    <div class="sa-row"><span>Set aside (${sa.setAsideRate}% for tax)</span><strong style="color:#e3b341">${fmtINR(sa.setAside)}</strong></div>
+    <div class="sa-row"><span>TDS deducted by platform (1%)</span><strong style="color:#3fb950">${fmtINR(sa.tds)}</strong></div>
+    <div class="sa-row"><span>Safe to spend / transfer</span><strong>${fmtINR(sa.available)}</strong></div>`;
+});
+
+// ─── Checklist ────────────────────────────────────────────────────────────────
+['26as', 'q2', 'books', 'itr'].forEach(key => {
+  el(`chk-${key}`)?.addEventListener('change', async () => {
+    const d = await chrome.storage.local.get(['checklist']);
+    const checklist = d.checklist || {};
+    checklist[key] = el(`chk-${key}`).checked;
+    await saveChecklist(checklist);
+  });
+});
+
+// ─── Init — restore last input ────────────────────────────────────────────────
+(async () => {
+  const { lastInput, checklist } = await loadSaved();
+
+  if (lastInput.earnings) {
+    el('inp-earnings').value = lastInput.earnings;
+    el('inp-regime').value   = lastInput.regime || 'new';
+    el('inp-state').value    = lastInput.state || 'Maharashtra';
+    if (lastInput.regime === 'old') {
+      el('row-expenses').style.display = 'flex';
+      el('inp-expenses').value = lastInput.expenses || '';
+    }
+    if (lastInput.tdsDeducted !== undefined) {
+      el('inp-tds').value = lastInput.tdsDeducted;
+    }
+    // Auto-recalculate on load
+    calculate();
+  }
+
+  // Restore checklist
+  ['26as', 'q2', 'books', 'itr'].forEach(key => {
     const chkEl = el(`chk-${key}`);
     if (chkEl) chkEl.checked = checklist[key] || false;
   });
-}
-
-// ─── Set-Aside Calculator ─────────────────────────────────────────────────────
-el('btn-calc').addEventListener('click', () => {
-  const payment = parseFloat(el('payment-input').value);
-  if (!payment || isNaN(payment) || payment <= 0) return;
-
-  const rate = currentTaxResult?.setAsideRate || 30;
-  const result = TaxEngine.calcPaymentSetAside(payment, rate);
-  const res = el('setaside-result');
-  res.classList.remove('hidden');
-  res.innerHTML = `
-    <div class="sa-row"><span>Set aside (${result.setAsideRate}%)</span><strong style="color:#e3b341">${fmtINR(result.setAside)}</strong></div>
-    <div class="sa-row"><span>TDS already deducted (1%)</span><strong style="color:#3fb950">${fmtINR(result.tds)}</strong></div>
-    <div class="sa-row"><span>Safe to spend</span><strong>${fmtINR(result.available)}</strong></div>
-  `;
-});
-
-// ─── Checklist persistence ────────────────────────────────────────────────────
-['26as', 'advance', 'books', 'itr'].forEach(key => {
-  const chkEl = el(`chk-${key}`);
-  if (chkEl) {
-    chkEl.addEventListener('change', async () => {
-      const data = await chrome.storage.local.get(['checklist']);
-      const checklist = data.checklist || {};
-      checklist[key] = chkEl.checked;
-      await saveChecklist(checklist);
-    });
-  }
-});
-
-// ─── Settings View ────────────────────────────────────────────────────────────
-el('btn-settings').addEventListener('click', () => {
-  el('view-main').classList.add('hidden');
-  el('view-settings').classList.remove('hidden');
-
-  // Pre-fill settings
-  el('setting-state').value = currentSettings.state || 'Maharashtra';
-  el('setting-regime').value = currentSettings.regime || 'new';
-  el('setting-expenses').value = currentSettings.expenses || '';
-  el('setting-usdrate').value = currentSettings.usdRate || 85;
-  el('setting-manual-earnings').value = currentSettings.manualEarnings || '';
-});
-
-el('btn-back').addEventListener('click', () => {
-  el('view-settings').classList.add('hidden');
-  el('view-main').classList.remove('hidden');
-});
-
-el('btn-save-settings').addEventListener('click', async () => {
-  const settings = {
-    state: el('setting-state').value,
-    regime: el('setting-regime').value,
-    expenses: parseFloat(el('setting-expenses').value) || 0,
-    usdRate: parseFloat(el('setting-usdrate').value) || 85,
-    manualEarnings: parseFloat(el('setting-manual-earnings').value) || 0
-  };
-  await saveSettings(settings);
-  currentSettings = settings;
-
-  el('save-status').classList.remove('hidden');
-  setTimeout(() => {
-    el('save-status').classList.add('hidden');
-    el('view-settings').classList.add('hidden');
-    el('view-main').classList.remove('hidden');
-    init(); // Refresh dashboard with new settings
-  }, 1000);
-});
-
-// ─── Upgrade ──────────────────────────────────────────────────────────────────
-el('btn-upgrade').addEventListener('click', (e) => {
-  e.preventDefault();
-  chrome.tabs.create({ url: 'https://your-site.com/upgrade' });
-});
-
-// ─── Init ─────────────────────────────────────────────────────────────────────
-async function init() {
-  const data = await loadAll();
-  renderDashboard(data);
-}
-
-init();
+})();

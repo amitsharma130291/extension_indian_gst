@@ -2,130 +2,45 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Indian Freelancer Tax Dashboard</title>
+  <title>Indian Freelancer Tax Calculator</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
 
-  <!-- Header -->
   <header class="header">
     <div class="header-brand">
       <div class="header-logo">🇮🇳</div>
       <div>
-        <div class="header-title">Tax Dashboard</div>
+        <div class="header-title">Freelancer Tax Calculator</div>
         <div class="header-subtitle" id="fy-label">FY 2025-26</div>
       </div>
     </div>
-    <button class="settings-btn" id="btn-settings" title="Settings">⚙</button>
   </header>
 
-  <!-- Main view -->
-  <div id="view-main">
+  <!-- Input Panel -->
+  <div class="section">
+    <div class="section-label">📝 Your Details</div>
 
-    <!-- Earnings Summary -->
-    <div class="section">
-      <div class="section-label">💰 Earnings This FY</div>
-      <div class="earnings-grid">
-        <div class="earn-card">
-          <div class="earn-value" id="gross-earnings">₹—</div>
-          <div class="earn-label">Gross Earnings</div>
-        </div>
-        <div class="earn-card">
-          <div class="earn-value green" id="tds-deducted">₹—</div>
-          <div class="earn-label">TDS Claimable</div>
-        </div>
-        <div class="earn-card">
-          <div class="earn-value amber" id="total-tax">₹—</div>
-          <div class="earn-label">Tax Liability</div>
-        </div>
-        <div class="earn-card">
-          <div class="earn-value red" id="net-payable">₹—</div>
-          <div class="earn-label">Net Payable</div>
+    <div class="input-grid">
+      <div class="input-row">
+        <label>Annual Earnings (₹)</label>
+        <div class="input-wrap">
+          <span class="input-prefix">₹</span>
+          <input type="number" id="inp-earnings" placeholder="e.g. 600000" min="0">
         </div>
       </div>
-    </div>
 
-    <!-- Advance Tax Deadlines -->
-    <div class="section">
-      <div class="section-label">📅 Advance Tax Schedule</div>
-      <div id="deadlines-list">
-        <div class="loading">Loading deadlines...</div>
+      <div class="input-row">
+        <label>Tax Regime</label>
+        <select id="inp-regime">
+          <option value="new">New Regime (default 2025-26)</option>
+          <option value="old">Old Regime</option>
+        </select>
       </div>
-    </div>
 
-    <!-- GST Threshold -->
-    <div class="section">
-      <div class="section-label">📊 GST Threshold</div>
-      <div class="gst-info">
-        <div class="gst-row">
-          <span>Your turnover</span>
-          <strong id="gst-turnover">₹—</strong>
-        </div>
-        <div class="gst-row">
-          <span>Threshold</span>
-          <strong id="gst-threshold">₹20,00,000</strong>
-        </div>
-        <div class="gst-bar-wrap">
-          <div class="gst-bar">
-            <div class="gst-bar-fill" id="gst-bar-fill"></div>
-          </div>
-          <span class="gst-pct" id="gst-pct">0%</span>
-        </div>
-        <div class="gst-status" id="gst-status"></div>
-      </div>
-    </div>
-
-    <!-- Set-Aside Calculator -->
-    <div class="section">
-      <div class="section-label">💼 Next Payment Set-Aside</div>
-      <div class="setaside-row">
-        <span>₹</span>
-        <input type="number" id="payment-input" class="payment-input" placeholder="Enter payment amount" min="0">
-        <button id="btn-calc" class="btn-calc">Calc</button>
-      </div>
-      <div id="setaside-result" class="setaside-result hidden"></div>
-    </div>
-
-    <!-- Checklist -->
-    <div class="section">
-      <div class="section-label">✅ Tax Checklist</div>
-      <div class="checklist" id="checklist">
-        <label class="check-item">
-          <input type="checkbox" id="chk-26as"> Download Form 26AS (TDS certificate)
-        </label>
-        <label class="check-item">
-          <input type="checkbox" id="chk-advance"> Advance tax paid for this quarter
-        </label>
-        <label class="check-item">
-          <input type="checkbox" id="chk-books"> Books updated this month
-        </label>
-        <label class="check-item">
-          <input type="checkbox" id="chk-itr"> ITR filed (due 31 Jul)
-        </label>
-      </div>
-    </div>
-
-    <!-- Footer -->
-    <div class="footer">
-      <a href="https://www.incometax.gov.in" target="_blank" class="footer-link">IT Portal ↗</a>
-      <a href="https://www.gst.gov.in" target="_blank" class="footer-link">GST Portal ↗</a>
-      <a href="#" id="btn-upgrade" class="footer-link pro-link">★ Upgrade to Pro</a>
-    </div>
-
-  </div>
-
-  <!-- Settings view -->
-  <div id="view-settings" class="hidden">
-    <div class="settings-header">
-      <button id="btn-back" class="back-btn">← Back</button>
-      <span class="settings-title">Settings</span>
-    </div>
-
-    <div class="settings-body">
-      <div class="field">
+      <div class="input-row">
         <label>Your State</label>
-        <select id="setting-state">
+        <select id="inp-state">
           <option value="Maharashtra">Maharashtra</option>
           <option value="Karnataka">Karnataka</option>
           <option value="Delhi">Delhi</option>
@@ -152,36 +67,116 @@
         </select>
       </div>
 
-      <div class="field">
-        <label>Tax Regime</label>
-        <select id="setting-regime">
-          <option value="new">New Regime (default 2025-26)</option>
-          <option value="old">Old Regime</option>
-        </select>
-        <div class="field-hint">New regime is default from FY 2023-24. Pick old if you have HRA/80C deductions.</div>
+      <div class="input-row" id="row-expenses" style="display:none">
+        <label>Business Expenses (₹) <span class="label-hint">old regime only</span></label>
+        <div class="input-wrap">
+          <span class="input-prefix">₹</span>
+          <input type="number" id="inp-expenses" placeholder="laptop, internet, etc." min="0">
+        </div>
       </div>
 
-      <div class="field">
-        <label>Annual Business Expenses (₹)</label>
-        <input type="number" id="setting-expenses" placeholder="e.g. 50000" min="0">
-        <div class="field-hint">Laptop, software, internet, coworking. Only relevant for Old Regime.</div>
+      <div class="input-row">
+        <label>TDS Deducted by Platform (₹) <span class="label-hint">optional</span></label>
+        <div class="input-wrap">
+          <span class="input-prefix">₹</span>
+          <input type="number" id="inp-tds" placeholder="auto-calc if blank" min="0">
+        </div>
       </div>
-
-      <div class="field">
-        <label>USD → INR Rate</label>
-        <input type="number" id="setting-usdrate" placeholder="85" min="1" max="200">
-        <div class="field-hint">Used to convert Upwork USD earnings to INR. Default: 85.</div>
-      </div>
-
-      <div class="field">
-        <label>Manually Enter FY Earnings (₹)</label>
-        <input type="number" id="setting-manual-earnings" placeholder="Leave blank to use auto-detected">
-        <div class="field-hint">Override if auto-detection from Upwork page isn't accurate.</div>
-      </div>
-
-      <button id="btn-save-settings" class="btn-save">Save Settings</button>
-      <div class="save-status hidden" id="save-status">✅ Saved!</div>
     </div>
+
+    <button class="btn-calculate" id="btn-calc">Calculate My Tax →</button>
+  </div>
+
+  <!-- Results Panel (hidden until calculated) -->
+  <div id="results" class="hidden">
+
+    <!-- Tax Summary -->
+    <div class="section">
+      <div class="section-label">💰 Tax Summary</div>
+      <div class="summary-grid">
+        <div class="sum-card">
+          <div class="sum-value" id="r-gross">₹—</div>
+          <div class="sum-label">Gross Earnings</div>
+        </div>
+        <div class="sum-card">
+          <div class="sum-value green" id="r-tds">₹—</div>
+          <div class="sum-label">TDS Claimable</div>
+        </div>
+        <div class="sum-card">
+          <div class="sum-value amber" id="r-liability">₹—</div>
+          <div class="sum-label">Tax Liability</div>
+        </div>
+        <div class="sum-card highlight">
+          <div class="sum-value" id="r-payable">₹—</div>
+          <div class="sum-label">Net Payable</div>
+        </div>
+      </div>
+
+      <!-- Tax breakdown toggle -->
+      <div class="breakdown-toggle" id="toggle-breakdown">▸ Show breakdown</div>
+      <div id="breakdown" class="breakdown hidden">
+        <div class="bk-row"><span>Taxable Income</span><strong id="bk-taxable">—</strong></div>
+        <div class="bk-row"><span>Income Tax</span><strong id="bk-base">—</strong></div>
+        <div class="bk-row" id="bk-rebate-row"><span>87A Rebate</span><strong id="bk-rebate" class="green">—</strong></div>
+        <div class="bk-row"><span>Health & Edu. Cess (4%)</span><strong id="bk-cess">—</strong></div>
+        <div class="bk-row bk-total"><span>Total Tax</span><strong id="bk-total">—</strong></div>
+        <div class="bk-row"><span>Less: TDS Credit</span><strong id="bk-tds-credit" class="green">—</strong></div>
+      </div>
+    </div>
+
+    <!-- Advance Tax Schedule -->
+    <div class="section" id="section-advance">
+      <div class="section-label">📅 Advance Tax Schedule</div>
+      <div id="advance-list"></div>
+      <div class="advance-note" id="advance-note"></div>
+    </div>
+
+    <!-- GST Status -->
+    <div class="section">
+      <div class="section-label">📊 GST Threshold</div>
+      <div class="gst-row-top">
+        <div>
+          <span class="gst-amount" id="gst-earnings">₹—</span>
+          <span class="gst-sep">/</span>
+          <span class="gst-thresh" id="gst-thresh">₹20,00,000</span>
+        </div>
+        <span class="gst-pct-badge" id="gst-pct-badge">0%</span>
+      </div>
+      <div class="gst-bar">
+        <div class="gst-fill" id="gst-fill"></div>
+      </div>
+      <div class="gst-status" id="gst-status"></div>
+    </div>
+
+    <!-- Set-Aside Calculator -->
+    <div class="section">
+      <div class="section-label">💼 Per-Payment Set-Aside</div>
+      <div class="sa-input-row">
+        <span class="sa-prefix">₹</span>
+        <input type="number" id="sa-payment" class="sa-input" placeholder="Enter payment amount">
+        <button class="sa-btn" id="sa-calc">Calc</button>
+      </div>
+      <div id="sa-result" class="sa-result hidden"></div>
+    </div>
+
+    <!-- Checklist -->
+    <div class="section">
+      <div class="section-label">✅ Tax To-Do</div>
+      <div class="checklist">
+        <label class="chk-item"><input type="checkbox" id="chk-26as"> Download Form 26AS from IT portal</label>
+        <label class="chk-item"><input type="checkbox" id="chk-q2"> Pay Q2 advance tax by 15 Sep</label>
+        <label class="chk-item"><input type="checkbox" id="chk-books"> Update books / income records</label>
+        <label class="chk-item"><input type="checkbox" id="chk-itr"> File ITR-4 Sugam by 31 Jul</label>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <a href="https://www.incometax.gov.in/iec/foportal/" target="_blank" class="footer-link">IT Portal ↗</a>
+    <a href="https://www.gst.gov.in" target="_blank" class="footer-link">GST Portal ↗</a>
+    <a href="https://onlineservices.tin.egov-nsdl.com/etaxnew/tdsnontds.jsp" target="_blank" class="footer-link">Pay Tax ↗</a>
   </div>
 
   <script src="tax-engine.js"></script>
