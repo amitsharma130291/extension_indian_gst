@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Indian Freelancer Tax Dashboard</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-brand">
+      <div class="header-logo">🇮🇳</div>
+      <div>
+        <div class="header-title">Tax Dashboard</div>
+        <div class="header-subtitle" id="fy-label">FY 2025-26</div>
+      </div>
+    </div>
+    <button class="settings-btn" id="btn-settings" title="Settings">⚙</button>
+  </header>
+
+  <!-- Main view -->
+  <div id="view-main">
+
+    <!-- Earnings Summary -->
+    <div class="section">
+      <div class="section-label">💰 Earnings This FY</div>
+      <div class="earnings-grid">
+        <div class="earn-card">
+          <div class="earn-value" id="gross-earnings">₹—</div>
+          <div class="earn-label">Gross Earnings</div>
+        </div>
+        <div class="earn-card">
+          <div class="earn-value green" id="tds-deducted">₹—</div>
+          <div class="earn-label">TDS Claimable</div>
+        </div>
+        <div class="earn-card">
+          <div class="earn-value amber" id="total-tax">₹—</div>
+          <div class="earn-label">Tax Liability</div>
+        </div>
+        <div class="earn-card">
+          <div class="earn-value red" id="net-payable">₹—</div>
+          <div class="earn-label">Net Payable</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Advance Tax Deadlines -->
+    <div class="section">
+      <div class="section-label">📅 Advance Tax Schedule</div>
+      <div id="deadlines-list">
+        <div class="loading">Loading deadlines...</div>
+      </div>
+    </div>
+
+    <!-- GST Threshold -->
+    <div class="section">
+      <div class="section-label">📊 GST Threshold</div>
+      <div class="gst-info">
+        <div class="gst-row">
+          <span>Your turnover</span>
+          <strong id="gst-turnover">₹—</strong>
+        </div>
+        <div class="gst-row">
+          <span>Threshold</span>
+          <strong id="gst-threshold">₹20,00,000</strong>
+        </div>
+        <div class="gst-bar-wrap">
+          <div class="gst-bar">
+            <div class="gst-bar-fill" id="gst-bar-fill"></div>
+          </div>
+          <span class="gst-pct" id="gst-pct">0%</span>
+        </div>
+        <div class="gst-status" id="gst-status"></div>
+      </div>
+    </div>
+
+    <!-- Set-Aside Calculator -->
+    <div class="section">
+      <div class="section-label">💼 Next Payment Set-Aside</div>
+      <div class="setaside-row">
+        <span>₹</span>
+        <input type="number" id="payment-input" class="payment-input" placeholder="Enter payment amount" min="0">
+        <button id="btn-calc" class="btn-calc">Calc</button>
+      </div>
+      <div id="setaside-result" class="setaside-result hidden"></div>
+    </div>
+
+    <!-- Checklist -->
+    <div class="section">
+      <div class="section-label">✅ Tax Checklist</div>
+      <div class="checklist" id="checklist">
+        <label class="check-item">
+          <input type="checkbox" id="chk-26as"> Download Form 26AS (TDS certificate)
+        </label>
+        <label class="check-item">
+          <input type="checkbox" id="chk-advance"> Advance tax paid for this quarter
+        </label>
+        <label class="check-item">
+          <input type="checkbox" id="chk-books"> Books updated this month
+        </label>
+        <label class="check-item">
+          <input type="checkbox" id="chk-itr"> ITR filed (due 31 Jul)
+        </label>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <a href="https://www.incometax.gov.in" target="_blank" class="footer-link">IT Portal ↗</a>
+      <a href="https://www.gst.gov.in" target="_blank" class="footer-link">GST Portal ↗</a>
+      <a href="#" id="btn-upgrade" class="footer-link pro-link">★ Upgrade to Pro</a>
+    </div>
+
+  </div>
+
+  <!-- Settings view -->
+  <div id="view-settings" class="hidden">
+    <div class="settings-header">
+      <button id="btn-back" class="back-btn">← Back</button>
+      <span class="settings-title">Settings</span>
+    </div>
+
+    <div class="settings-body">
+      <div class="field">
+        <label>Your State</label>
+        <select id="setting-state">
+          <option value="Maharashtra">Maharashtra</option>
+          <option value="Karnataka">Karnataka</option>
+          <option value="Delhi">Delhi</option>
+          <option value="Tamil Nadu">Tamil Nadu</option>
+          <option value="Telangana">Telangana</option>
+          <option value="Gujarat">Gujarat</option>
+          <option value="Uttar Pradesh">Uttar Pradesh</option>
+          <option value="West Bengal">West Bengal</option>
+          <option value="Rajasthan">Rajasthan</option>
+          <option value="Kerala">Kerala</option>
+          <option value="Punjab">Punjab</option>
+          <option value="Haryana">Haryana</option>
+          <option value="Madhya Pradesh">Madhya Pradesh</option>
+          <option value="Uttarakhand">Uttarakhand</option>
+          <option value="Himachal Pradesh">Himachal Pradesh</option>
+          <option value="Manipur">Manipur</option>
+          <option value="Mizoram">Mizoram</option>
+          <option value="Nagaland">Nagaland</option>
+          <option value="Tripura">Tripura</option>
+          <option value="Meghalaya">Meghalaya</option>
+          <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+          <option value="Sikkim">Sikkim</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Tax Regime</label>
+        <select id="setting-regime">
+          <option value="new">New Regime (default 2025-26)</option>
+          <option value="old">Old Regime</option>
+        </select>
+        <div class="field-hint">New regime is default from FY 2023-24. Pick old if you have HRA/80C deductions.</div>
+      </div>
+
+      <div class="field">
+        <label>Annual Business Expenses (₹)</label>
+        <input type="number" id="setting-expenses" placeholder="e.g. 50000" min="0">
+        <div class="field-hint">Laptop, software, internet, coworking. Only relevant for Old Regime.</div>
+      </div>
+
+      <div class="field">
+        <label>USD → INR Rate</label>
+        <input type="number" id="setting-usdrate" placeholder="85" min="1" max="200">
+        <div class="field-hint">Used to convert Upwork USD earnings to INR. Default: 85.</div>
+      </div>
+
+      <div class="field">
+        <label>Manually Enter FY Earnings (₹)</label>
+        <input type="number" id="setting-manual-earnings" placeholder="Leave blank to use auto-detected">
+        <div class="field-hint">Override if auto-detection from Upwork page isn't accurate.</div>
+      </div>
+
+      <button id="btn-save-settings" class="btn-save">Save Settings</button>
+      <div class="save-status hidden" id="save-status">✅ Saved!</div>
+    </div>
+  </div>
+
+  <script src="tax-engine.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

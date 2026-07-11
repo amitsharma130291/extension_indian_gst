@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "Indian Freelancer Tax Dashboard",
+  "version": "1.0.0",
+  "description": "Track your Upwork/Fiverr earnings, advance tax deadlines, GST threshold, and TDS — all calculated locally. Built for Indian freelancers.",
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://www.upwork.com/*",
+    "https://www.fiverr.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Indian Freelancer Tax Dashboard"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.upwork.com/nx/payments/*",
+        "https://www.upwork.com/nx/reports/*"
+      ],
+      "js": ["tax-engine.js", "content-upwork.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.fiverr.com/users/*/manage_orders*",
+        "https://www.fiverr.com/*/manage_orders*"
+      ],
+      "js": ["tax-engine.js", "content-fiverr.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
